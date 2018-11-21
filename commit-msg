@@ -1,0 +1,127 @@
+#!/bin/sh
+#PRE-COMMIT HOOK
+#CREATED BY liweiguang AT 2018-04-04
+#
+# An example hook script to check the commit log message.
+# Called by "git commit" with one argument, the name of the file
+# that has the commit message.  The hook should exit with non-zero
+# status after issuing an appropriate message if it wants to stop the
+# commit.  The hook is allowed to edit the commit message file.
+#
+# To enable this hook, rename this file to "commit-msg".
+
+# Uncomment the below to add a Signed-off-by line to the message.
+# Doing this in a hook is a bad idea in general, but the prepare-commit-msg
+# hook is more suited to it.
+#
+# SOB=$(git var GIT_AUTHOR_IDENT | sed -n 's/^\(.*>\).*$/Signed-off-by: \1/p')
+# grep -qs "^$SOB" "$1" || echo "$SOB" >> "$1"
+
+# This example catches duplicate Signed-off-by lines.
+#standard comment message info.
+standardInfo()
+{
+        echo "------------------------------------------------------------------------------">&2
+        echo "The correct format as:">&2
+        echo "'[Fix|Add|Mod] JIRAID Jira summary etc...' or only 'OCT Remark information etc...'">&2
+        echo "Tips:Use spaces between all keywords, no colon.">&2
+        echo "------------------------------------------------------------------------------">&2
+}
+
+##检测点
+#1、只有1行
+#2、OCT开头的，空格后面必须有描述
+#3、FIX/ADD/mod开头的，后面要跟jiraid,jiraid后面要有描述
+#####
+
+#Check the ISSUE_NUM is exist
+
+CommitTypeLINE=`sed -n 1p ${1} |sed 's/ *$//g'|sed 's/^ *//g'|tr '[a-z]' '[A-Z]'|awk -F " " '{print $1}'|sed 's/ *$//g'|sed 's/^ *//g'`
+JIDLINE=`sed -n 1p ${1} |sed 's/ *$//g'|sed 's/^ *//g'|tr '[a-z]' '[A-Z]'|awk -F " " '{print $2}'|sed 's/ *$//g'|sed 's/^ *//g'`
+REMTYPE=$(sed -n 1p ${1} | sed 's/^ *//g'|tr '[a-z]' '[A-Z]'|awk -F " " '{print $NF}'|grep -vE "^[ |A-Z]*-[0-9]" |wc -l)
+OCTTYPE=$(sed -n 1p ${1} | sed 's/^ *//g'|tr '[a-z]' '[A-Z]'|sed 's/OCT //g'|grep -vE "^[ |A-Z]*-[0-9]" |wc -l)
+OnlyOCT=`sed -n 1p ${1} |sed 's/ *$//g'|sed 's/^ *//g'|tr '[a-z]' '[A-Z]'`
+LOGMSG=$(sed -n 1p ${1} | sed 's/^ *//g'|tr '[a-z]' '[A-Z]'|sed 's/OCT //g'|wc -l)
+MIN_LOGMSGFunc()
+{
+if [ "$LOGMSG" -lt 1 ];then
+    echo -e "\n Log message cann't be empty!you must input more than $MIN_LENGTH characters as comment!" >&2
+        standardInfo
+    exit 1
+fi
+}
+
+#fix.mod.add.oct
+JIDFunc()
+{
+ISSUE_COUNT=$(echo "$JIDLINE" | grep -E "^[ |A-Z]*-[0-9]" |wc -l )
+if [ "$ISSUE_COUNT" -lt 1 ];then
+    echo -e "You must input the issue number related with your commit. \n such as"" DHOME-5678 ." >&2
+	standardInfo
+    exit 1
+fi
+
+if [ "$REMTYPE" -lt 1 ];then
+    echo -e "You must input the megssage related with your JIRAID. \n " >&2
+	standardInfo
+    exit 1
+fi
+}
+
+
+OCTFunc()
+{
+ISSUE_COUNT=$(echo "$OnlyOCT" | grep -E "^OCT" |wc -l )
+if [ "$ISSUE_COUNT" -lt 1 ];then
+    echo -e "You only input first line.\n such as"" OCT Remark information etc..." >&2
+                standardInfo
+    exit 1
+fi
+if [ "$OCTTYPE" -lt 1 ];then
+    echo -e "You must input the megssage after OCT.but do not input a JIRAID " >&2
+        standardInfo
+    exit 1
+fi
+MIN_LOGMSGFunc
+}
+
+
+CMDEBUGFunc()
+{
+        echo "cmdebug"
+}
+
+
+#Check the CommitType first for all check.
+CTFunc()
+{
+case $CommitTypeLINE in
+                FIX)
+                        JIDFunc
+                        ;;
+                MOD)
+                        JIDFunc
+                        ;;
+                ADD)
+                        JIDFunc
+                        ;;
+                OCT)
+                        OCTFunc
+                        ;;
+                MERGE)
+                        ;;
+                CMDEBUG)
+                        CMDEBUGFunc
+                        exit 1
+                        ;;
+                *) 
+                        echo -e "You must input the commitType in the first line![Fix|Add|Mod|OCT]" >&2
+                        standardInfo
+                        exit 1
+                 ;;
+esac
+}
+
+
+CTFunc
+exit 0 
